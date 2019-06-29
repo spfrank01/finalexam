@@ -112,18 +112,25 @@ func UpdateByIDHandler(c *gin.Context) {
 		return
 	}
 	defer db.Close()
-	stmt, err := db.Prepare("UPDATE customers SET name=$2, email=$3, status=$4 WHERE id=$1")
+	fmt.Println("update", cusReq)
+	err = baseExec(db, `UPDATE customers SET name=$2 ,email=$3, status=$4 WHERE id=$1`, cusReq.ID, cusReq.Name, cusReq.Email, cusReq.Status)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"msg": err.Error()})
-		return
-	}
-
-	if err := stmt.QueryRow(cusReq.ID, cusReq.Name, cusReq.Email, cusReq.Status).Scan(); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"msg": err.Error()})
-		return
 	}
 
 	c.JSON(http.StatusCreated, cusReq)
+}
+
+func baseExec(db *sql.DB, query string, args ...interface{}) error {
+	stmt, err := db.Prepare(query)
+	if err != nil {
+		return err
+	}
+	_, err = stmt.Exec(args...)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func DeleteByIdHandler(c *gin.Context) {
