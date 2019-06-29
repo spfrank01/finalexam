@@ -118,7 +118,7 @@ func UpdateByIDHandler(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"msg": err.Error()})
 	}
 
-	c.JSON(http.StatusCreated, cusReq)
+	c.JSON(http.StatusOK, cusReq)
 }
 
 func baseExec(db *sql.DB, query string, args ...interface{}) error {
