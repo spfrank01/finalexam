@@ -2,9 +2,12 @@ package customer
 
 import (
 	"database/sql"
+	"fmt"
 	"github.com/gin-gonic/gin"
 	"net/http"
 	"os"
+
+	_ "github.com/lib/pq"
 )
 
 type Customer struct {
@@ -12,6 +15,60 @@ type Customer struct {
 	Name   string `json:"name"`
 	Email  string `json:"email"`
 	Status string `json:"status"`
+}
+
+func GetHandler(c *gin.Context) {
+	db, err := sql.Open("postgres", os.Getenv("DATABASE_URL"))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	defer db.Close()
+	stmt, err := db.Prepare("SELECT id, name, email, status FROM customers;")
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	rows, err := stmt.Query()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	var cusRes []Customer
+	for rows.Next() {
+		cusTmp := Customer{}
+
+		if err := rows.Scan(&cusTmp.ID, &cusTmp.Name, &cusTmp.Email, &cusTmp.Status); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		cusRes = append(cusRes, cusTmp)
+	}
+	c.JSON(http.StatusOK, cusRes)
+}
+
+func GetByIdHandler(c *gin.Context) {
+	db, err := sql.Open("postgres", os.Getenv("DATABASE_URL"))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"msg": err.Error()})
+		return
+	}
+	defer db.Close()
+	stmt, err := db.Prepare("SELECT id, name, email, status FROM customers WHERE id=$1;")
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"msg": err.Error()})
+		return
+	}
+
+	row := stmt.QueryRow(c.Param("id"))
+	cusRes := Customer{}
+	if err := row.Scan(&cusRes.ID, &cusRes.Name, &cusRes.Email, &cusRes.Status); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"msg": err.Error()})
+	}
+
+	c.JSON(http.StatusOK, cusRes)
 }
 
 func CreateHandler(c *gin.Context) {
@@ -39,4 +96,32 @@ func CreateHandler(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusCreated, cusReq)
+}
+
+func UpdateByIDHandler(c *gin.Context) {
+
+}
+
+func DeleteByIdHandler(c *gin.Context) {
+	db, err := sql.Open("postgres", os.Getenv("DATABASE_URL"))
+	if err != nil {
+		fmt.Println("err", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"msg": err.Error()})
+		return
+	}
+	defer db.Close()
+
+	stmt, err := db.Prepare("DELETE FROM customers WHERE id=$1;")
+	if err != nil {
+		fmt.Println("err", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"msg": err.Error()})
+		return
+	}
+
+	if val, err := stmt.Query(c.Param("id")); err != nil {
+		fmt.Println("val", val)
+		c.JSON(http.StatusBadRequest, gin.H{"msg": err.Error()})
+	}
+
+	c.JSON(http.StatusOK, gin.H{"status": "success"})
 }
