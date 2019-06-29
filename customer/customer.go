@@ -98,8 +98,32 @@ func CreateHandler(c *gin.Context) {
 	c.JSON(http.StatusCreated, cusReq)
 }
 
+//UPDATE todos SET title=$2, status=$3 WHERE id=$1`, id, title, status)
 func UpdateByIDHandler(c *gin.Context) {
+	cusReq := Customer{}
+	if err := c.ShouldBind(&cusReq); err != nil {
+		c.JSON(http.StatusBadRequest, err.Error())
+		return
+	}
 
+	db, err := sql.Open("postgres", os.Getenv("DATABASE_URL"))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"msg": err.Error()})
+		return
+	}
+	defer db.Close()
+	stmt, err := db.Prepare("UPDATE customers SET name=$2, email=$3, status=$4 WHERE id=$1")
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"msg": err.Error()})
+		return
+	}
+
+	if err := stmt.QueryRow(cusReq.ID, cusReq.Name, cusReq.Email, cusReq.Status).Scan(); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"msg": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusCreated, cusReq)
 }
 
 func DeleteByIdHandler(c *gin.Context) {
@@ -123,5 +147,5 @@ func DeleteByIdHandler(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"msg": err.Error()})
 	}
 
-	c.JSON(http.StatusOK, gin.H{"status": "success"})
+	c.JSON(http.StatusOK, gin.H{"message": "customer deleted"})
 }
